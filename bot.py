@@ -14,7 +14,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🌴 Зона отдыха 'Бриз':\n"
+        "🌴 Зона отдыха 'Бриз' на берегу Ташкентского моря:\n"
         "- 12 коттеджей\n"
         "- 12 номеров\n"
         "- 3-разовое питание\n"
