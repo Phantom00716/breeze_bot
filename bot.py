@@ -1,47 +1,66 @@
-import os
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-)
+import os from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update from telegram.ext import (ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Добро пожаловать в зону отдыха Бриз! 🌊\n\n"
-        "/info - Информация\n"
-        "/cottages - Свободные коттеджи\n"
-        "/contact - Контакты"
-    )
+Языковые тексты
 
-async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🌴 Зона отдыха 'Бриз' на берегу Ташкентского моря:\n"
-        "- 12 коттеджей\n"
-        "- 12 номеров\n"
-        "- 3-разовое питание\n"
-        "- Топчаны у воды"
-    )
+LANG = { 'ru': { 'start': "Пожалуйста, выберите язык:", 'menu': "Главное меню:", 'rooms': "Выберите тип размещения:", 'cottages': "Выберите тип коттеджа:", 'standard_rooms': "Выберите тип стандартного номера:", 'topchans': "Топчаны: у воды, в тени, с навесом.", 'menu_info': "🍽 Меню кухни: Завтрак, обед, ужин. Натуральные продукты.", 'contacts': "📞 Контакты:\nТел: +998 99 444 99 59\nTelegram: @breeze_admin\nОплата: Click, Payme, наличными" }, 'uz': { 'start': "Iltimos, tilni tanlang:", 'menu': "Asosiy menyu:", 'rooms': "Joylashtirish turini tanlang:", 'cottages': "Kottej turini tanlang:", 'standard_rooms': "Standart xona turini tanlang:", 'topchans': "Topchanlar: suv bo‘yida, soyada, naves bilan.", 'menu_info': "🍽 Oshxona menyusi: Nonushta, tushlik, kechki ovqat. Tabiiy mahsulotlar.", 'contacts': "📞 Kontaktlar:\nTel: +998 99 444 99 59\nTelegram: @breeze_admin\nTo‘lov: Click, Payme, naqd" } }
 
-async def cottages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔍 Доступность коттеджей временно не отображается.")
+user_language = {}
 
-async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📞 Контакты:\n+998 90 123 45 67\n@breeze_admin\n📍 Ташкентское море"
-    )
+Генерация главного меню
 
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+def main_menu(lang): return InlineKeyboardMarkup([ [InlineKeyboardButton("🏠 Размещение" if lang == 'ru' else "🏠 Joylashtirish", callback_data='rooms')], [InlineKeyboardButton("🍽 Меню кухни" if lang == 'ru' else "🍽 Oshxona menyusi", callback_data='menu')], [InlineKeyboardButton("💵 Контакты/Оплата" if lang == 'ru' else "💵 Kontaktlar / To‘lov", callback_data='contacts')] ])
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("info", info))
-    app.add_handler(CommandHandler("cottages", cottages))
-    app.add_handler(CommandHandler("contact", contact))
+Команда /start
 
-    app.run_polling()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): keyboard = [[ InlineKeyboardButton("🇷🇺 Русский", callback_data='lang_ru'), InlineKeyboardButton("🇺🇿 O‘zbekcha", callback_data='lang_uz') ]] await update.message.reply_text("Пожалуйста, выберите язык / Iltimos, tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-if __name__ == "__main__":
-    main()
+Обработка callback'ов
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE): query = update.callback_query await query.answer()
+
+user_id = query.from_user.id
+data = query.data
+
+if data.startswith('lang_'):
+    lang = data.split('_')[1]
+    user_language[user_id] = lang
+    await query.edit_message_text(text=LANG[lang]['menu'], reply_markup=main_menu(lang))
+
+elif data == 'rooms':
+    lang = user_language.get(user_id, 'ru')
+    keyboard = [[
+        InlineKeyboardButton("🏡 Коттеджи" if lang == 'ru' else "🏡 Kottejlar", callback_data='cottages')],
+        [InlineKeyboardButton("🚪 Стандартные номера" if lang == 'ru' else "🚪 Standart xonalar", callback_data='standard_rooms')],
+        [InlineKeyboardButton("🛏 Топчаны" if lang == 'ru' else "🛏 Topchanlar", callback_data='topchans')]
+    ]
+    await query.edit_message_text(LANG[lang]['rooms'], reply_markup=InlineKeyboardMarkup(keyboard))
+
+elif data in ['cottages', 'standard_rooms']:
+    lang = user_language.get(user_id, 'ru')
+    prefix = "Коттеджи" if data == 'cottages' else "Стандартные номера"
+    uz_prefix = "Kottejlar" if data == 'cottages' else "Standart xonalar"
+    keyboard = [[
+        InlineKeyboardButton("2-местные" if lang == 'ru' else "2 o‘rinli", callback_data=f'{data}_2')],
+        [InlineKeyboardButton("4-местные" if lang == 'ru' else "4 o‘rinli", callback_data=f'{data}_4')],
+        [InlineKeyboardButton("5-местные" if lang == 'ru' else "5 o‘rinli", callback_data=f'{data}_5')]
+    ]
+    await query.edit_message_text((prefix if lang == 'ru' else uz_prefix), reply_markup=InlineKeyboardMarkup(keyboard))
+
+elif data == 'topchans':
+    lang = user_language.get(user_id, 'ru')
+    await query.edit_message_text(LANG[lang]['topchans'])
+
+elif data == 'menu':
+    lang = user_language.get(user_id, 'ru')
+    await query.edit_message_text(LANG[lang]['menu_info'])
+
+elif data == 'contacts':
+    lang = user_language.get(user_id, 'ru')
+    await query.edit_message_text(LANG[lang]['contacts'])
+
+async def main(): app = ApplicationBuilder().token(TOKEN).build() app.add_handler(CommandHandler("start", start)) app.add_handler(CallbackQueryHandler(callback_handler)) await app.run_polling()
+
+if name == 'main': import asyncio asyncio.run(main())
+
