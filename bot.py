@@ -1,20 +1,14 @@
 import os
 from dotenv import load_dotenv
-import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Загрузка переменных из .env
+# Загрузка переменных окружения
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# Включаем логирование
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-
-# Тексты на двух языках
+# Тексты
 TEXTS = {
     "ru": {
         "main_menu": "Главное меню",
@@ -46,7 +40,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text("Выберите язык / Tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-# Обработка языка
+# Выбор языка
 async def language_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -54,7 +48,7 @@ async def language_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["lang"] = lang
     await location_menu_handler(update, context)
 
-# Меню размещения
+# Выбор размещения
 async def location_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -68,7 +62,7 @@ async def location_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
     ]
     await query.edit_message_text("🏡 " + txt["accommodation"], reply_markup=InlineKeyboardMarkup(keyboard))
 
-# Обработка главного меню и пунктов
+# Главное меню
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     lang = context.user_data.get("lang", "ru")
@@ -79,18 +73,20 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "menu":
         await query.edit_message_text("📷 Фото меню будет добавлено позже.")
     elif query.data == "contacts":
-        await query.edit_message_text("📞 +998 XX XXX-XX-XX\\n📍 Ташкентское море, зона отдыха «Бриз»")
+        await query.edit_message_text("📞 +998 XX XXX-XX-XX\n📍 Ташкентское море, зона отдыха «Бриз»")
     elif query.data in ["cottages", "standard", "topchan"]:
         await query.edit_message_text("📷 Здесь будет информация и фото.")
     elif query.data.startswith("lang_"):
         await language_handler(update, context)
 
 # Запуск бота
-application = Application.builder().token(TOKEN).build()
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CallbackQueryHandler(language_handler, pattern="^lang_"))
-application.add_handler(CallbackQueryHandler(location_menu_handler, pattern="^(cottages|standard|topchan|lang_)$"))
-application.add_handler(CallbackQueryHandler(menu_handler))
+def main():
+    application = Application.builder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(language_handler, pattern="^lang_"))
+    application.add_handler(CallbackQueryHandler(location_menu_handler, pattern="^(cottages|standard|topchan|lang_)$"))
+    application.add_handler(CallbackQueryHandler(menu_handler))
+    application.run_polling()
 
 if __name__ == "__main__":
-    application.run_polling()
+    main()
